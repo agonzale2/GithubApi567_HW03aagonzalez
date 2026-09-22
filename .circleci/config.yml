@@ -17,7 +17,7 @@ jobs:
       - run:
           name: Run GitHub API tests
           command: |
-            python -m pytest GithubApi567_HW03aagonzalez/TEST_m03a03a_agonzalez.py
+            python -m pytest TEST_m03a03a_agonzalez.py
 
 workflows:
   test-workflow:
