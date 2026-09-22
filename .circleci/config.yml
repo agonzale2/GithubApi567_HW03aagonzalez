@@ -1,0 +1,25 @@
+version: 2.1
+
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/python:3.13
+
+    steps:
+      - checkout
+
+      - run:
+          name: Install dependencies
+          command: |
+            python -m pip install --upgrade pip
+            python -m pip install requests pytest
+
+      - run:
+          name: Run GitHub API tests
+          command: |
+            python -m pytest GithubApi567_HW03aagonzalez/TEST_m03a03a_agonzalez.py
+
+workflows:
+  test-workflow:
+    jobs:
+      - build-and-test
