@@ -1,62 +1,78 @@
 import pytest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
-import m03a03a_agonzalez as github_api
+from m03a03a_agonzalez import get_repositories, display_repositories
 
 
-def mock_requests(monkeypatch, *responses):
-    """Create and install mock GitHub API responses."""
-    mock_get = Mock()
+def create_response(status_code, json_data=None):
+    """Create a mock GitHub API response."""
+    response = Mock()
+    response.status_code = status_code
+    response.json.return_value = json_data
+    return response
+
+
+@patch("m03a03a_agonzalez.requests.get")
+def test_get_repositories(mock_get):
+    """Test successful repository and commit retrieval."""
 
     mock_get.side_effect = [
-        Mock(status_code=status, json=lambda data=data: data)
-        for status, data in responses
+        create_response(
+            200,
+            [
+                {"name": "Repository1"},
+                {"name": "Repository2"}
+            ]
+        ),
+        create_response(200, [{}, {}, {}]),
+        create_response(200, [{}, {}])
     ]
 
-    monkeypatch.setattr(github_api.requests, "get", mock_get)
+    result = get_repositories("test_user")
 
-
-def test_get_repositories(monkeypatch):
-    mock_requests(
-        monkeypatch,
-        (200, [{"name": "Repository1"}, {"name": "Repository2"}]),
-        (200, [{}, {}, {}]),
-        (200, [{}, {}])
-    )
-
-    assert github_api.get_repositories("test_user") == [
+    assert result == [
         ("Repository1", 3),
         ("Repository2", 2)
     ]
 
 
-def test_invalid_user(monkeypatch):
-    mock_requests(monkeypatch, (404, None))
+@patch("m03a03a_agonzalez.requests.get")
+def test_invalid_user(mock_get):
+    """Test that an invalid user raises an error."""
+
+    mock_get.return_value = create_response(404)
 
     with pytest.raises(ValueError):
-        github_api.get_repositories("invalid_user")
+        get_repositories("invalid_user")
 
 
-def test_empty_repository(monkeypatch):
-    mock_requests(
-        monkeypatch,
-        (200, [{"name": "EmptyRepository"}]),
-        (409, None)
-    )
+@patch("m03a03a_agonzalez.requests.get")
+def test_empty_repository(mock_get):
+    """Test that an empty repository has zero commits."""
 
-    assert github_api.get_repositories("test_user") == [
-        ("EmptyRepository", 0)
+    mock_get.side_effect = [
+        create_response(
+            200,
+            [{"name": "EmptyRepository"}]
+        ),
+        create_response(409)
     ]
 
+    result = get_repositories("test_user")
 
-def test_display_repositories(monkeypatch, capsys):
-    monkeypatch.setattr(
-        github_api,
-        "get_repositories",
-        lambda user: [("Repository1", 10), ("Repository2", 27)]
-    )
+    assert result == [("EmptyRepository", 0)]
 
-    github_api.display_repositories("test_user")
+
+@patch("m03a03a_agonzalez.get_repositories")
+def test_display_repositories(mock_get_repositories, capsys):
+    """Test the required output format."""
+
+    mock_get_repositories.return_value = [
+        ("Repository1", 10),
+        ("Repository2", 27)
+    ]
+
+    display_repositories("test_user")
 
     assert capsys.readouterr().out == (
         "Repo: Repository1 Number of commits: 10\n"
